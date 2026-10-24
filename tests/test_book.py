@@ -1,4 +1,6 @@
-from kalshieye import Book, replay_book
+import pytest
+
+from kalshieye import Book, book, replay_book
 
 
 def _row(ts, side, price, size, snapshot=False, ticker="T"):
@@ -48,3 +50,14 @@ def test_float_residue_does_not_leave_a_level():
 def test_filters_one_ticker():
     rows = [_row(0, "yes", 0.30, 5.0, snapshot=True, ticker="A"), _row(0, "yes", 0.60, 9.0, snapshot=True, ticker="B")]
     assert [s[1] for s in replay_book(rows, ticker="b")] == ["B"]
+
+
+def test_tables_and_frames_replay_like_rows(monkeypatch):
+    pa = pytest.importorskip("pyarrow")
+    pd = pytest.importorskip("pandas")
+    monkeypatch.setattr(book, "_BATCH", 64)  # many batches, so rows cross batch boundaries
+    rows = [_row(0, "yes", 0.40, 100.0, snapshot=True), _row(0, "no", 0.55, 50.0, snapshot=True)]
+    rows += [_row(i, "yes", 0.40 + (i % 3) / 100, float(i % 7) - 3.0) for i in range(1, 2000)]
+    want = list(replay_book(rows))
+    assert list(replay_book(pa.Table.from_pylist(rows))) == want
+    assert list(replay_book(pd.DataFrame(rows))) == want

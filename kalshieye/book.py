@@ -10,7 +10,7 @@ are derived from the NO side.
 
 from __future__ import annotations
 
-from typing import Any, Iterable, Iterator
+from typing import Any, Iterator
 
 
 class Book:
@@ -60,14 +60,23 @@ class Book:
         return b, a
 
 
-def _rows(data: Any) -> Iterable[dict[str, Any]]:
-    if hasattr(data, "to_pylist"):
-        return data.to_pylist()
-    if hasattr(data, "to_dicts"):
-        return data.to_dicts()
-    if hasattr(data, "to_dict") and hasattr(data, "columns"):
-        return data.to_dict("records")
-    return data
+_BATCH = 65_536
+
+
+def _rows(data: Any) -> Iterator[dict[str, Any]]:
+    """Rows one at a time. Tables and frames are converted a batch at a time, so a day of book_l2
+    never sits in memory as Python dicts all at once."""
+    if hasattr(data, "to_batches"):  # pyarrow Table
+        for batch in data.to_batches(max_chunksize=_BATCH):
+            yield from batch.to_pylist()
+    elif hasattr(data, "iter_slices"):  # polars DataFrame
+        for part in data.iter_slices(n_rows=_BATCH):
+            yield from part.to_dicts()
+    elif hasattr(data, "to_dict") and hasattr(data, "columns"):  # pandas DataFrame
+        for start in range(0, len(data), _BATCH):
+            yield from data.iloc[start : start + _BATCH].to_dict("records")
+    else:
+        yield from data
 
 
 def replay_book(

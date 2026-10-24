@@ -1,6 +1,6 @@
 # kalshieye
 
-Python client for Kalshi Eye flat files: daily Parquet for the order book (`book_l2`), 1-second top-10 book snapshots (`book_snap_1s`), top of book (`bbo`), one-minute bars (`bbo_1m`), trades, crypto spot (`spot`), and the reference tables (`markets`, `settlements`, `series`, `incidents`).
+Python client for Kalshi Eye flat files. Kalshi: daily Parquet for the order book (`book_l2`), 1-second top-10 book snapshots (`book_snap_1s`), top of book (`bbo`), one-minute bars (`bbo_1m`), trades, crypto spot (`spot`), and the reference tables (`markets`, `settlements`, `series`, `incidents`). Polymarket: `polymarket_l2`, `polymarket_trades`, `polymarket_fills`, `polymarket_markets`. Limitless: `limitless_l2`, `limitless_markets`. Chainlink prices: `chainlink`. `replay_book` rebuilds Kalshi books from `book_l2`.
 
 ```bash
 pip install "kalshieye[pandas]"      # or kalshieye[polars], or plain kalshieye
