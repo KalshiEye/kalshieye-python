@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kalshieye"
+version = "0.2.1"
+description = "Download Kalshi Eye flat files (order book, book snapshots, top of book, bars, trades, spot, markets, settlements) and load them into pandas or Polars."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+keywords = ["kalshi", "prediction markets", "order book", "market data", "parquet"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Intended Audience :: Financial and Insurance Industry",
+  "Intended Audience :: Science/Research",
+  "Topic :: Office/Business :: Financial :: Investment",
+]
+dependencies = []
+
+[project.optional-dependencies]
+pandas = ["pandas>=2.0", "pyarrow>=14"]
+polars = ["polars>=0.20"]
+
+[project.urls]
+Homepage = "https://kalshieye.com"
+Documentation = "https://kalshieye.com/docs/bulk/"
+Source = "https://github.com/KalshiEye/kalshieye-python"
+
+[tool.setuptools]
+packages = ["kalshieye"]
