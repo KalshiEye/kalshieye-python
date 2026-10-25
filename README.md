@@ -4,7 +4,7 @@ Python client for Kalshi Eye flat files. Kalshi: daily Parquet for the order boo
 
 ```bash
 pip install "kalshieye[pandas]"      # or kalshieye[polars], or plain kalshieye
-export KALSHIEYE_API_KEY=clab_...     # create one under API keys
+export KALSHIEYE_API_KEY=clab_...     # create one at https://kalshieye.com/app/api/
 ```
 
 ```python
@@ -12,34 +12,34 @@ from kalshieye import Client, replay_book
 
 kx = Client()
 kx.datasets()                                             # schemas, coverage, required plan
-kx.estimate(["bbo_1m", "trades"], "2026-10-12", "2026-10-18", series=["KXBTC*"])
+# 2026-10-13 is a free sample day: any key gets every dataset for it.
+kx.estimate(["bbo_1m", "trades"], "2026-10-13", "2026-10-13", series=["KXBTC*"])
 
-kx.download(["bbo_1m", "trades"], "2026-10-12", "2026-10-18",
-            series=["KXBTC*"], dest="data", progress=True)
+kx.download(["bbo_1m", "trades"], "2026-10-13", "2026-10-13",
+            series=["KXBTC*"], progress=True)               # into ./kalshieye-data
 
-df = kx.load("bbo_1m", "2026-10-12", "2026-10-18", series="KXBTC15M")
-fills = kx.load("trades", "2026-10-12", "2026-10-12", tickers=["KXBTC15M-26OCT121545-45"])
+df = kx.load("bbo_1m", "2026-10-13", "2026-10-13", series="KXBTC15M")
+fills = kx.load("trades", "2026-10-13", "2026-10-13", tickers=["KXBTC15M-26OCT131200-00"])
 
-# Rebuild the book from book_l2 rows
-book = kx.load("book_l2", "2026-10-12", "2026-10-12", tickers=["KXBTC15M-26OCT121545-45"])
+# Rebuild the book from book_l2 rows (Full book; free on sample days)
+book = kx.load("book_l2", "2026-10-13", "2026-10-13", tickers=["KXBTC15M-26OCT131200-00"])
 for ts, ticker, bids, asks in replay_book(book):
     ...
 
-# One event in one zip: book, snapshots, trades, spot, metadata.json, settlement.json
-kx.bundle("KXBTC15M-26OCT121545")
+# One event in one zip: the datasets on your plan, metadata.json, settlement.json
+kx.bundle("KXBTC15M-26OCT131200")
 
 # CSV.gz copy of a single file
-f = next(kx.files("trades", "2026-10-12", "2026-10-12", series="KXBTC15M"))
+f = next(kx.files("trades", "2026-10-13", "2026-10-13", series="KXBTC15M"))
 kx.csv(f["key"])
 
-# S3 access (paid plans): a read-only key for aws s3 sync, rclone, DuckDB, boto3
-key = kx.create_s3_key("laptop")
-print(key["snippets"]["aws_cli"])
+# S3 sync (aws s3 sync, rclone, DuckDB, boto3) is coming soon: create_s3_key() answers 503 until then.
 ```
 
-- Files land under `dest` in the lake layout (`bbo_1m/date=2026-10-12/series=KXBTC15M/...parquet`), so DuckDB, Polars, and Spark can read the folder as a hive-partitioned dataset. `spot` is partitioned by `asset=` instead of `series=`.
+- Files land under `dest` (default `kalshieye-data`) in the lake layout (`bbo_1m/date=2026-10-13/series=KXBTC15M/...parquet`), so DuckDB, Polars, and Spark can read the folder as a hive-partitioned dataset. `spot` and `chainlink` are partitioned by `asset=` instead of `series=`.
 - Every file is checked against its sha256. Files already on disk are skipped and do not count toward your monthly download allowance.
-- `series` accepts wildcards (`KXBTC*`). `categories` filters by archive category (`crypto`, `politics`, ...). `tickers` picks the series files holding those markets, and `load` keeps only their rows.
+- `series` accepts wildcards (`KXBTC*`). `categories` keeps the Kalshi series in those categories, named as `/api/v1/categories` returns them (`Crypto`, `Climate and Weather`, ...). `tickers` picks the series files holding those markets, and `load` keeps only their rows.
+- Every call counts toward your plan's API limits (Explorer: 100 requests a day, 30 a minute); see https://kalshieye.com/docs/authentication/.
 - `bundle`, `csv`, and `replay` are built on the server the first time; the client waits for them.
 - Errors raise `kalshieye.ApiError`. Use `err.code` to tell plan limits (`plan_required`, `history_limited`, `download_quota`) apart.
 
