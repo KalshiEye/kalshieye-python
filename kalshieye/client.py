@@ -3,11 +3,11 @@
     from kalshieye import Client
 
     kx = Client()                     # reads KALSHIEYE_API_KEY
-    kx.estimate(["bbo_1m"], "2026-10-01", "2026-10-07", series=["KXBTC*"])
-    paths = kx.download(["bbo_1m"], "2026-10-01", "2026-10-07", series=["KXBTC*"], dest="data")
-    df = kx.load("bbo_1m", "2026-10-01", "2026-10-07", series=["KXBTC15M"])   # pandas
-    df = kx.load("trades", "2026-10-12", "2026-10-12", tickers=["KXBTC15M-26OCT121545-45"])
-    zip_path = kx.bundle("KXBTC15M-26OCT121545")      # one event: book, trades, spot, settlement
+    kx.estimate(["bbo_1m"], "2026-10-13", "2026-10-13", series=["KXBTC*"])
+    paths = kx.download(["bbo_1m"], "2026-10-13", "2026-10-13", series=["KXBTC*"])   # ./kalshieye-data
+    df = kx.load("bbo_1m", "2026-10-13", "2026-10-13", series=["KXBTC15M"])   # pandas
+    df = kx.load("trades", "2026-10-13", "2026-10-13", tickers=["KXBTC15M-26OCT131200-00"])
+    zip_path = kx.bundle("KXBTC15M-26OCT131200")      # one event: the datasets on your plan
 """
 
 from __future__ import annotations
@@ -111,7 +111,7 @@ class Client:
 
     def _need_key(self) -> None:
         if not self.api_key:
-            raise ApiError(401, "Set KALSHIEYE_API_KEY or pass api_key= (create a key under API keys).")
+            raise ApiError(401, "Set KALSHIEYE_API_KEY or pass api_key= (create a key at https://kalshieye.com/app/api/).")
 
     def _poll(self, call: Callable[[], dict[str, Any]], *, wait: float) -> dict[str, Any]:
         """Repeat ``call`` while the server reports ``building``."""
@@ -365,7 +365,8 @@ class Client:
         return out
 
     def create_s3_key(self, name: str = "default") -> dict[str, Any]:
-        """Create a read-only S3 key for syncing whole datasets (paid plans).
+        """Create a read-only S3 key for syncing whole datasets (paid plans). S3 sync is coming soon:
+        until it's switched on, the API answers 503.
 
         Returns endpoint, bucket, access_key_id, secret_access_key (shown once), and
         ready-to-paste snippets for aws, rclone, DuckDB, and boto3.
