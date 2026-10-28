@@ -26,8 +26,13 @@ book = kx.load("book_l2", "2026-10-13", "2026-10-13", tickers=["KXBTC15M-26OCT13
 for ts, ticker, bids, asks in replay_book(book):
     ...
 
-# One event in one zip: the datasets on your plan, metadata.json, settlement.json
-kx.bundle("KXBTC15M-26OCT131200")
+# One Kalshi event in a zip: the datasets on your plan, metadata.json, settlement.json.
+# A zip holds 31 published days; bundles() saves every zip of a longer event, each named by its days.
+zip_path = kx.bundle("KXBTC15M-26OCT131200")
+paths = kx.bundles("KXBTC15M-26OCT131200")
+
+# Book replay for one market-day: every 1-second frame and every trade (all pages)
+day = kx.replay("KXBTC15M-26OCT131200-00", date="2026-10-13")
 
 # CSV.gz copy of a single file
 f = next(kx.files("trades", "2026-10-13", "2026-10-13", series="KXBTC15M"))
@@ -38,9 +43,10 @@ kx.csv(f["key"])
 
 - Files land under `dest` (default `kalshieye-data`) in the lake layout (`bbo_1m/date=2026-10-13/series=KXBTC15M/...parquet`), so DuckDB, Polars, and Spark can read the folder as a hive-partitioned dataset. `spot` and `chainlink` are partitioned by `asset=` instead of `series=`.
 - Every file is checked against its sha256. Files already on disk are skipped and do not count toward your monthly download allowance.
-- `series` accepts wildcards (`KXBTC*`). `categories` keeps the Kalshi series in those categories, named as `/api/v1/categories` returns them (`Crypto`, `Climate and Weather`, ...). `tickers` picks the series files holding those markets, and `load` keeps only their rows.
+- `series` accepts wildcards (`KXBTC*`). `categories` keeps the Kalshi series in those categories, named as `/api/v1/categories` returns them (`Crypto`, `Climate and Weather`, ...); an unknown one is an error, not an empty result. `tickers` picks the series files holding those markets, and `load` keeps only their rows.
 - Every call counts toward your plan's API limits (Explorer: 100 requests a day, 30 a minute); see https://kalshieye.com/docs/authentication/.
-- `bundle`, `csv`, and `replay` are built on the server the first time; the client waits for them.
+- `bundle`, `csv`, and `replay` are built on the server the first time anyone asks, then cached. The client polls until each is ready, up to its `wait` seconds, and raises `ApiError` (504) if it is still building; call again later.
+- Nothing comes back cut short. `replay` walks every page (`next_offset`) and checks the totals; `bundles` asks for each 31-day zip in turn (`next_start_date`); `bundle` raises (413) for an event that needs more than one zip; `requests` returns every saved request, or the newest `limit`.
 - Errors raise `kalshieye.ApiError`. Use `err.code` to tell plan limits (`plan_required`, `history_limited`, `download_quota`) apart.
 
 ## Without an account

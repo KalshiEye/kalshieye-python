@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kalshieye"
-version = "0.2.3"
+version = "0.2.4"
 description = "Download Kalshi Eye flat files (order book, book snapshots, top of book, bars, trades, spot, markets, settlements) and load them into pandas or Polars."
 readme = "README.md"
 license = "MIT"
