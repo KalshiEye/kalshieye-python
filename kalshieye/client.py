@@ -344,24 +344,63 @@ class Client:
         suffix = ".tickers.csv.gz" if body["tickers"] else ".csv.gz"
         return self._save(f, Path(dest) / (rel + suffix))
 
+    def bundles(self, event: str, *, dest: str | Path = "kalshieye-bundles", wait: float = 900.0) -> list[Path]:
+        """Every zip of one Kalshi event: book_l2, book_snap_1s, bbo, trades, spot (what your plan
+        includes), plus metadata.json and settlement.json. A zip holds up to 31 published days; an
+        event with more comes as several, each named by its days."""
+        self._need_key()
+        eid = event.strip().upper()
+        path = f"/api/v1/events/{urllib.parse.quote(eid)}/bundle"
+        saved: list[Path] = []
+        start: str | None = None
+        while True:
+            params = {"start_date": start} if start else None
+            out = self._poll(lambda: self._request("POST", path, params=params), wait=wait)
+            if out.get("status") != "ready":
+                raise ApiError(504, "Bundle is still being built; call again later.")
+            saved.append(self._save(out["file"], Path(dest) / out["file"]["filename"]))
+            start = out.get("next_start_date")
+            if not start:
+                return saved
+
     def bundle(self, event: str, *, dest: str | Path = "kalshieye-bundles", wait: float = 900.0) -> Path:
-        """Zip of one Kalshi event: book_l2, book_snap_1s, bbo, trades, spot (what your
-        plan includes), plus metadata.json and settlement.json."""
+        """The zip of one Kalshi event, when it fits in one (31 published days); otherwise this raises
+        and ``bundles()`` saves them all."""
         self._need_key()
         eid = event.strip().upper()
         out = self._poll(lambda: self._request("POST", f"/api/v1/events/{urllib.parse.quote(eid)}/bundle"), wait=wait)
         if out.get("status") != "ready":
             raise ApiError(504, "Bundle is still being built; call again later.")
+        if out.get("next_start_date"):
+            raise ApiError(413, f"{eid} spans {out.get('days_total')} published days, more than one zip holds: use bundles().")
         return self._save(out["file"], Path(dest) / out["file"]["filename"])
 
     def replay(self, ticker: str, *, date: str | None = None, wait: float = 300.0) -> dict[str, Any]:
-        """Top-10 book frames (1s, thinned to at most 3600) and trades for one market-day."""
+        """Every top-10 book frame (one a second the book changed) and every trade of one
+        market-day: the API pages them (up to 3600 frames a page) and this walks every page."""
         self._need_key()
-        params = {"date": date} if date else None
         path = f"/api/v1/markets/{urllib.parse.quote(ticker.strip().upper())}/replay"
-        out = self._poll(lambda: self._request("GET", path, params=params), wait=wait)
-        if out.get("status") != "ready":
-            raise ApiError(504, "Replay is still being prepared; call again later.")
+        out: dict[str, Any] | None = None
+        offset: int | None = 0
+        while offset is not None:
+            params: dict[str, Any] = {"offset": offset}
+            if date:
+                params["date"] = date
+            page = self._poll(lambda: self._request("GET", path, params=params), wait=wait)
+            if page.get("status") != "ready":
+                raise ApiError(504, "Replay is still being prepared; call again later.")
+            if out is None:
+                out = page
+            else:
+                out["frames"] = out["frames"] + page["frames"]
+                out["trades"] = out["trades"] + page["trades"]
+            offset = page.get("next_offset")
+        assert out is not None
+        out["next_offset"] = None
+        got = (len(out["frames"]), len(out["trades"]))
+        want = (out.get("frames_total", got[0]), out.get("trades_total", got[1]))
+        if got != want:
+            raise ApiError(502, f"Replay pages held {got[0]} frames and {got[1]} trades, not {want[0]} and {want[1]}; call again.")
         return out
 
     def create_s3_key(self, name: str = "default") -> dict[str, Any]:
@@ -402,6 +441,14 @@ class Client:
             body["name"] = name
         return self._request("POST", "/api/v1/requests", body=body)
 
-    def requests(self, limit: int = 20) -> list[dict[str, Any]]:
+    def requests(self, limit: int | None = None) -> list[dict[str, Any]]:
+        """Your saved requests, newest first: every one, or the newest ``limit``."""
         self._need_key()
-        return self._request("GET", "/api/v1/requests", params={"limit": limit})["requests"]
+        out: list[dict[str, Any]] = []
+        offset: int | None = 0
+        while offset is not None and (limit is None or len(out) < limit):
+            size = 100 if limit is None else max(1, min(100, limit - len(out)))
+            page = self._request("GET", "/api/v1/requests", params={"limit": size, "offset": offset})
+            out += page["requests"]
+            offset = page.get("next_offset")
+        return out
