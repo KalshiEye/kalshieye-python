@@ -44,7 +44,7 @@ kx.csv(f["key"])
 - Files land under `dest` (default `kalshieye-data`) in the lake layout (`bbo_1m/date=2026-10-13/series=KXBTC15M/...parquet`), so DuckDB, Polars, and Spark can read the folder as a hive-partitioned dataset. `spot` and `chainlink` are partitioned by `asset=` instead of `series=`.
 - Every file is checked against its sha256. Files already on disk are skipped and do not count toward your monthly download allowance.
 - `series` accepts wildcards (`KXBTC*`). `categories` keeps the Kalshi series in those categories, named as `/api/v1/categories` returns them (`Crypto`, `Climate and Weather`, ...); an unknown one is an error, not an empty result. `tickers` picks the series files holding those markets, and `load` keeps only their rows.
-- Every call counts toward your plan's API limits (Explorer: 100 requests a day, 30 a minute); see https://kalshieye.com/docs/authentication/.
+- Every call counts toward your plan's API limits (Explorer: 100 requests a day, 30 a minute); see https://kalshieye.com/docs/authentication/?utm_source=github&utm_medium=readme&utm_campaign=kalshieye-python.
 - `bundle`, `csv`, and `replay` are built on the server the first time anyone asks, then cached. The client polls until each is ready, up to its `wait` seconds, and raises `ApiError` (504) if it is still building; call again later.
 - Nothing comes back cut short. `replay` walks every page (`next_offset`) and checks the totals; `bundles` asks for each 31-day zip in turn (`next_start_date`); `bundle` raises (413) for an event that needs more than one zip; `requests` returns every saved request, or the newest `limit`.
 - Errors raise `kalshieye.ApiError`. Use `err.code` to tell plan limits (`plan_required`, `history_limited`, `download_quota`) apart.
@@ -71,4 +71,4 @@ print(bids)  # [(0.51, 155253.51), (0.5, 405328.0), (0.49, 15126.0)]
 print(asks)  # [(0.52, 960851.07), (0.53, 862817.41), (0.54, 113351.03)]
 ```
 
-More runnable examples (a backtest, spreads and depth, calibration) are in [KalshiEye/kalshieye-examples](https://github.com/KalshiEye/kalshieye-examples). Every column is described in the [data dictionary](https://kalshieye.com/docs/datasets/).
+More runnable examples (a backtest, spreads and depth, calibration) are in [KalshiEye/kalshieye-examples](https://github.com/KalshiEye/kalshieye-examples). Every column is described in the [data dictionary](https://kalshieye.com/docs/datasets/?utm_source=github&utm_medium=readme&utm_campaign=kalshieye-python).
